@@ -1,9 +1,16 @@
 import boto3
 import datetime
+import argparse
 
-def get_active_instances_ami_names(region_name='us-east-1'):
-    # Initialize a session using Amazon EC2
-    ec2 = boto3.client('ec2', region_name=region_name)
+def get_active_instances_ami_names(region_name='us-east-1', profile_name=None):
+    # Initialize a session using a specific profile
+    if profile_name:
+        session = boto3.Session(profile_name=profile_name, region_name=region_name)
+    else:
+        session = boto3.Session(region_name=region_name)
+
+    # Use the session to create an EC2 client
+    ec2 = session.client('ec2')
 
     # Retrieve all running instances
     response = ec2.describe_instances(
@@ -40,7 +47,15 @@ def calculate_days_since_date(date_str):
     return delta.days
 
 if __name__ == "__main__":
-    ami_names = get_active_instances_ami_names()
+
+    parser = argparse.ArgumentParser(description='Query AMI names in active instances.')
+    parser.add_argument('--profile', type=str, help='AWS profile name to use', required=False)
+    parser.add_argument('--region', type=str, default='us-east-1', help='AWS region name', required=False)
+    
+    args = parser.parse_args()
+    
+    ami_names = get_active_instances_ami_names(region_name=args.region, profile_name=args.profile)
+    
     for ami_id, ami_name in ami_names.items():
         if len(ami_name) >= 8:
             date_str = ami_name[-8:]
