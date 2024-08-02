@@ -1,6 +1,7 @@
 import boto3
 import datetime
 import argparse
+from instance import Instance, get_instance_name
 
 def get_active_instances_ami_names(region_name='us-east-1', profile_name=None):
     # Initialize a session using a specific profile
@@ -22,14 +23,31 @@ def get_active_instances_ami_names(region_name='us-east-1', profile_name=None):
         ]
     )
 
-    # Extract AMI IDs from running instances
-    ami_ids = set()
+    instances = []
+
     for reservation in response['Reservations']:
         for instance in reservation['Instances']:
-            ami_ids.add(instance['ImageId'])
+            inst_attributes = Instance(get_instance_name(instance["Tags]"], instance["InstanceId"], instance["ImageId"]))
+            instances.append(inst_attributes)
+
+    return instances
+
+def get_ami_names(instances, region, profile =0):
+    # Initialize a session using a specific profile
+    if profile:
+        session = boto3.Session(profile_name=profile, region_name=region)
+    else:
+        session = boto3.Session(region_name=region)
+
+    # Use the session to create an EC2 client
+    ec2 = session.client('ec2')
 
     # Describe the AMIs to get their names
     ami_names = {}
+    ami_ids = set()
+    for instance in instances:
+        ami_ids.add(instance.get_ami_id())
+    
     if ami_ids:
         ami_response = ec2.describe_images(
             ImageIds=list(ami_ids)
@@ -58,7 +76,10 @@ if __name__ == "__main__":
     
     for ami_id, ami_name in ami_names.items():
         if len(ami_name) >= 8:
-            date_str = ami_name[-8:]
+            if ami_name[-2:] == "-1":
+                date_str = f"20{ami_name[-8:-2]}"
+            else:
+                date_str = f"20{ami_name[-6:]}"
             try:
                 days_since = calculate_days_since_date(date_str)
                 print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Days Since {date_str}: {days_since} days")

@@ -44,7 +44,7 @@ class Instance():
     def set_age(self, age):
         self.age = age
 
-def get_isntance_name(tags):
+def get_instance_name(tags):
     for tag in tags:
         if tag["Key"] == "Name":
             return tag["Value"]
