@@ -3,7 +3,7 @@ import datetime
 import argparse
 from instance import Instance, get_instance_name
 
-def get_active_instances_ami_names(region_name='us-east-1', profile_name=None):
+def get_active_instances(region_name='us-east-1', profile_name=None):
     # Initialize a session using a specific profile
     if profile_name:
         session = boto3.Session(profile_name=profile_name, region_name=region_name)
@@ -72,8 +72,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    ami_names = get_active_instances_ami_names(region_name=args.region, profile_name=args.profile)
+    instances = get_active_instances (region_name=args.region, profile_name=args.profile)
+    ami_names = get_ami_names(instances = instances, region_name=args.region, profile_name=args.profile)
     
+    ami_ages = {}
     for ami_id, ami_name in ami_names.items():
         if len(ami_name) >= 8:
             if ami_name[-2:] == "-1":
@@ -82,8 +84,16 @@ if __name__ == "__main__":
                 date_str = f"20{ami_name[-6:]}"
             try:
                 days_since = calculate_days_since_date(date_str)
-                print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Days Since {date_str}: {days_since} days")
+                ami_ages[ami_id] = days_since
+                #print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Days Since {date_str}: {days_since} days")
             except ValueError:
                 print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: Invalid date format in AMI name")
         else:
             print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: AMI name is too short to contain a date")
+
+    for instance in instances:
+        instance.set_age(ami_ages[instance.get_ami_id()])
+        instance.set_ami_name(ami_names[instance.get_ami_id()])
+
+        if instance.get_age():
+            print(f"instance: {instance.get_instance_name()}, AMI Name: {instance.get_ami_name()}, Age: {instance.get_age()} days")
