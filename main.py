@@ -2,6 +2,27 @@ import boto3
 import datetime
 import argparse
 from instance import Instance, get_instance_name
+from account import Account
+from region import Region
+
+def get_image_ages(ami_names):
+    ami_ages = {}
+    for ami_id, ami_name in ami_names.items():
+        if len(ami_name) >= 8:
+            if ami_name[-2:] == "-1":
+                date_str = f"20{ami_name[-8:-2]}"
+            else:
+                date_str = f"20{ami_name[-6:]}"
+            try:
+                days_since = calculate_days_since_date(date_str)
+                ami_ages[ami_id] = days_since
+                #print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Days Since {date_str}: {days_since} days")
+            except ValueError:
+                print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: Invalid date format in AMI name")
+        else:
+            print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: AMI name is too short to contain a date")
+
+    return ami_ages
 
 def get_active_instances(region_name='us-east-1', profile_name=None):
     # Initialize a session using a specific profile
@@ -67,37 +88,39 @@ def calculate_days_since_date(date_str):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Query AMI age in active instances.')
-    parser.add_argument('--profiles', nargs='+', type=str, help='AWS profile names to use', required=True)
-    parser.add_argument('--regions', nargs='*', type=str, default=['us-east-1'], help='AWS region names', required=False)
+    parser.add_argument('-p','--profiles', type=str, help='Comma-delimited list of AWS profile names to use', required=True)
+    parser.add_argument('-r','--regions', type=str, default=['us-east-1'], help='Comma-delimited list of AWS profile names to use', required=False)
+    parser.add_argument('-a','--age', type=int, default=30, help='# of days to compare ami age to',required=False)
     
     args = parser.parse_args()
     
     profiles = args.profiles.split(',')
     regions = args.regions.split(',')
+    accounts = []
+    for profile in profiles:
+        account = Account(profile)
+        for region in regions:
+            instances = get_active_instances (region_name=args.region, profile_name=args.profile)
+            ami_names = get_ami_names(instances = instances, region_name=args.region, profile_name=args.profile)
+            ami_ages = get_image_ages(ami_names)
+
+            for instance in instances:
+                instance.set_age(ami_ages[instance.get_ami_id()])
+                instance.set_ami_name(ami_names[instance.get_ami_id()])
+
+            sorted_instances_desc = sorted(instances, key=lambda x: x.age, reverse=True)
+            
+
+            inv = Region(name=region, instances=sorted_instances_desc)
+            account.add_region(inv)
+        
+        accounts.append(account)
 
     
-    instances = get_active_instances (region_name=args.region, profile_name=args.profile)
-    ami_names = get_ami_names(instances = instances, region_name=args.region, profile_name=args.profile)
-    
-    ami_ages = {}
-    for ami_id, ami_name in ami_names.items():
-        if len(ami_name) >= 8:
-            if ami_name[-2:] == "-1":
-                date_str = f"20{ami_name[-8:-2]}"
-            else:
-                date_str = f"20{ami_name[-6:]}"
-            try:
-                days_since = calculate_days_since_date(date_str)
-                ami_ages[ami_id] = days_since
-                #print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Days Since {date_str}: {days_since} days")
-            except ValueError:
-                print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: Invalid date format in AMI name")
-        else:
-            print(f"AMI ID: {ami_id}, AMI Name: {ami_name}, Error: AMI name is too short to contain a date")
-
-    for instance in instances:
-        instance.set_age(ami_ages[instance.get_ami_id()])
-        instance.set_ami_name(ami_names[instance.get_ami_id()])
-
-        if instance.get_age():
-            print(f"instance: {instance.get_instance_name()}, AMI Name: {instance.get_ami_name()}, Age: {instance.get_age()} days")
+    for account in accounts:
+        print(f"Profile: {account.profile}")
+        for region in account.get_regions():
+            print(f"Region: {region.name}")
+            for instance in region.get_instances():
+                if instance.get_age() > args.age:
+                    print(f"Instance Name: {instance.instance_name}, Instance ID: {instance.instance_id}, AMI ID: {instance.ami_id}, AMI Name: {instance.ami_name}, Age: {instance.age} days")
