@@ -66,11 +66,15 @@ def calculate_days_since_date(date_str):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Query AMI names in active instances.')
-    parser.add_argument('--profile', type=str, help='AWS profile name to use', required=False)
-    parser.add_argument('--region', type=str, default='us-east-1', help='AWS region name', required=False)
+    parser = argparse.ArgumentParser(description='Query AMI age in active instances.')
+    parser.add_argument('--profiles', nargs='+', type=str, help='AWS profile names to use', required=True)
+    parser.add_argument('--regions', nargs='*', type=str, default=['us-east-1'], help='AWS region names', required=False)
     
     args = parser.parse_args()
+    
+    profiles = args.profiles.split(',')
+    regions = args.regions.split(',')
+
     
     instances = get_active_instances (region_name=args.region, profile_name=args.profile)
     ami_names = get_ami_names(instances = instances, region_name=args.region, profile_name=args.profile)
