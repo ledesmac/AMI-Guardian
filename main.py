@@ -100,8 +100,8 @@ if __name__ == "__main__":
     for profile in profiles:
         account = Account(profile)
         for region in regions:
-            instances = get_active_instances (region_name=args.region, profile_name=args.profile)
-            ami_names = get_ami_names(instances = instances, region_name=args.region, profile_name=args.profile)
+            instances = get_active_instances (region_name=region, profile_name=profile)
+            ami_names = get_ami_names(instances = instances, region_name=region, profile_name=profile)
             ami_ages = get_image_ages(ami_names)
 
             for instance in instances:
@@ -110,7 +110,6 @@ if __name__ == "__main__":
 
             sorted_instances_desc = sorted(instances, key=lambda x: x.age, reverse=True)
             
-
             inv = Region(name=region, instances=sorted_instances_desc)
             account.add_region(inv)
         
