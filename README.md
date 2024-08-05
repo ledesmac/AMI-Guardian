@@ -24,7 +24,7 @@
    git clone https://github.com/yourusername/AMIGuardian.git
    cd AMIGuardian
 
-2. Instsall the required python packages:
+2. Install the required python packages:
    ```bash
    pip install boto3
 

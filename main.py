@@ -98,7 +98,7 @@ if __name__ == "__main__":
     regions = args.regions.split(',')
     accounts = []
     for profile in profiles:
-        account = Account(profile)
+        account = Account(profile, regions=[])
         for region in regions:
             instances = get_active_instances (region_name=region, profile_name=profile)
             ami_names = get_ami_names(instances = instances, region_name=region, profile_name=profile)
